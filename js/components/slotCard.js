@@ -34,14 +34,17 @@ export function renderSlotCard(slot, isApplied) {
           </svg>
           ${formatDate(slot.date)} ${slot.timeStart}~${slot.timeEnd}
         </span>
-        <span class="meta-item">
+        <a class="meta-item meta-map"
+           href="https://map.naver.com/v5/search/${encodeURIComponent(slot.location)}"
+           target="_blank" rel="noopener noreferrer"
+           aria-label="${slot.location} 네이버 지도에서 보기">
           <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
           </svg>
-          ${slot.location}
-        </span>
+          <span class="map-text">${slot.location}</span>
+        </a>
       </div>
 
       <div class="card-bottom">

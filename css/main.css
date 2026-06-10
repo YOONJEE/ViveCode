@@ -327,6 +327,37 @@ button { border: none; background: none; cursor: pointer; font-family: inherit; 
 .empty-history { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 14px; line-height: 1.8; }
 
 /* ===========================
+   알림 벨 배지
+   =========================== */
+.notif-btn { position: relative; }
+.notif-badge {
+  position: absolute; top: 2px; right: 2px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  background: var(--accent); color: #fff; border-radius: 8px;
+  font-size: 10px; font-weight: 800; display: flex;
+  align-items: center; justify-content: center;
+  pointer-events: none;
+}
+
+/* ===========================
+   지도 링크
+   =========================== */
+.meta-map {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 12px; color: var(--primary-dark); text-decoration: none;
+  border-bottom: 1px dashed var(--primary); padding-bottom: 1px;
+  transition: color 0.15s;
+}
+.meta-map:hover { color: var(--primary); }
+.map-text { font-weight: 500; }
+.map-link-detail {
+  display: block; font-size: 12px; font-weight: 700; line-height: 1.4;
+  color: var(--primary-dark); text-decoration: none;
+  border-bottom: 1px dashed var(--primary);
+}
+.map-link-detail:hover { color: var(--primary); }
+
+/* ===========================
    Card — 설명 & 준비물
    =========================== */
 .card-desc {

@@ -23,18 +23,9 @@ export function renderMyPage(state) {
         </div>
       </div>
       <div class="stats-grid">
-        <div class="stat-card">
-          <p class="stat-num">${totalHours}</p>
-          <p class="stat-label">총 봉사시간</p>
-        </div>
-        <div class="stat-card">
-          <p class="stat-num">${appliedSlots.length}</p>
-          <p class="stat-label">참여 횟수</p>
-        </div>
-        <div class="stat-card">
-          <p class="stat-num">${orgCount}</p>
-          <p class="stat-label">방문 기관</p>
-        </div>
+        <div class="stat-card"><p class="stat-num">${totalHours}</p><p class="stat-label">총 봉사시간</p></div>
+        <div class="stat-card"><p class="stat-num">${appliedSlots.length}</p><p class="stat-label">참여 횟수</p></div>
+        <div class="stat-card"><p class="stat-num">${orgCount}</p><p class="stat-label">방문 기관</p></div>
       </div>
     </section>
 
@@ -70,23 +61,24 @@ export function renderMyPage(state) {
       <!-- 봉사 이력 -->
       <div class="section-header">
         <h2 class="section-title">봉사 이력</h2>
-        ${appliedSlots.length > 0
-          ? '<button class="btn-cert" data-action="goto-cert">📄 확인서 발급</button>'
-          : ''}
+        ${appliedSlots.length > 0 ? `
+          <div style="display:flex;gap:8px">
+            <button class="btn-cert" data-action="toggle-cert-inline">
+              ${state.showCertInline ? '📄 확인서 닫기' : '📄 확인서 발급'}
+            </button>
+          </div>` : ''}
       </div>
-      <div class="history-list">
-        ${renderHistory(appliedSlots)}
-      </div>
+      <div class="history-list">${renderHistory(appliedSlots)}</div>
       ${appliedSlots.length > 0 ? renderBreakdown(appliedSlots) : ''}
-    </section>
-  `;
+
+      <!-- 인라인 확인서 -->
+      ${state.showCertInline ? renderInlineCert(appliedSlots, totalHours, badge) : ''}
+    </section>`;
 }
 
 function renderHistory(slots) {
   if (slots.length === 0) {
-    return `<div class="empty-history">
-      아직 신청한 봉사 활동이 없어요.<br>홈에서 첫 봉사를 신청해보세요! 🌿
-    </div>`;
+    return `<div class="empty-history">아직 신청한 봉사 활동이 없어요.<br>홈에서 첫 봉사를 신청해보세요! 🌿</div>`;
   }
   return slots.map(slot => `
     <div class="history-item">
@@ -96,8 +88,7 @@ function renderHistory(slots) {
         <p class="history-org">${slot.orgName} · ${formatDate(slot.date)}</p>
       </div>
       <span class="history-hours">${slot.hours}h</span>
-    </div>
-  `).join('');
+    </div>`).join('');
 }
 
 function renderBreakdown(slots) {
@@ -110,13 +101,61 @@ function renderBreakdown(slots) {
       <div class="cat-bar-track">
         <div class="cat-bar-fill" style="width:${Math.round((h / maxH) * 100)}%"></div>
       </div>
-    </div>
-  `).join('');
+    </div>`).join('');
 
   return `
     <div class="section-header" style="margin-top:8px">
       <h2 class="section-title">활동 분야 현황</h2>
     </div>
-    <div class="category-breakdown">${bars}</div>
-  `;
+    <div class="category-breakdown">${bars}</div>`;
+}
+
+function renderInlineCert(slots, totalHours, badge) {
+  const rows = slots.map(s => `
+    <tr>
+      <td>${s.orgName}</td><td>${s.title}</td>
+      <td>${s.date}</td><td class="cert-hours">${s.hours}시간</td>
+    </tr>`).join('');
+
+  return `
+    <div class="inline-cert-wrap" id="inline-cert">
+      <div class="section-header" style="margin-top:20px;margin-bottom:12px">
+        <h2 class="section-title">봉사활동 확인서</h2>
+        <button class="btn-cert" data-action="goto-cert">🖨️ 전체화면 인쇄</button>
+      </div>
+      <div class="cert-doc">
+        <div class="cert-watermark">봉사ON</div>
+        <div class="cert-top">
+          <div class="cert-logo">봉사<span>ON</span></div>
+          <h1 class="cert-title">봉사활동 확인서</h1>
+          <p class="cert-subtitle">Certificate of Volunteer Service</p>
+        </div>
+        <div class="cert-recipient">
+          <span class="cert-label">봉사자</span>
+          <span class="cert-value">봉사자님</span>
+        </div>
+        <div class="cert-summary">
+          <div class="cert-sum-item">
+            <p class="cert-sum-label">총 봉사시간</p>
+            <p class="cert-sum-val">${totalHours}<span>시간</span></p>
+          </div>
+          <div class="cert-sum-item">
+            <p class="cert-sum-label">참여 횟수</p>
+            <p class="cert-sum-val">${slots.length}<span>회</span></p>
+          </div>
+          <div class="cert-sum-item">
+            <p class="cert-sum-label">등급</p>
+            <p class="cert-sum-val">${badge.emoji}</p>
+          </div>
+        </div>
+        <table class="cert-table">
+          <thead><tr><th>기관명</th><th>활동명</th><th>날짜</th><th>시간</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div class="cert-footer">
+          <div><p>발급일: 2026년 06월 10일</p><p>발급처: 봉사ON</p></div>
+          <div class="cert-stamp">봉사<br>ON</div>
+        </div>
+      </div>
+    </div>`;
 }

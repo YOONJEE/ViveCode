@@ -37,7 +37,11 @@ export function renderDetailPage(slotId, applied) {
         </div>
         <div class="info-item">
           <p class="info-label">장소</p>
-          <p class="info-value" style="font-size:12px;line-height:1.4">${slot.location}</p>
+          <a class="info-value map-link-detail"
+             href="https://map.naver.com/v5/search/${encodeURIComponent(slot.location)}"
+             target="_blank" rel="noopener noreferrer">
+            📍 ${slot.location}
+          </a>
         </div>
         <div class="info-item">
           <p class="info-label">봉사 시간</p>
