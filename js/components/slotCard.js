@@ -3,6 +3,7 @@ import { formatDate } from '../utils/helpers.js';
 export function renderSlotCard(slot, isApplied) {
   const spotsPercent = Math.round((slot.spotsLeft / slot.spotsTotal) * 100);
   const isLow = slot.spotsLeft <= 2;
+  const itemChips = (slot.items || []).map(i => `<span class="item-chip">🎒 ${i}</span>`).join('');
 
   return `
     <article class="slot-card" data-id="${slot.id}" role="button" tabindex="0" aria-label="${slot.title} 상세보기">
@@ -19,7 +20,12 @@ export function renderSlotCard(slot, isApplied) {
           <span class="badge badge-category">${slot.categoryEmoji} ${slot.category}</span>
         </div>
       </div>
+
       <h3 class="card-title">${slot.title}</h3>
+      <p class="card-desc">${slot.shortDesc || ''}</p>
+
+      ${itemChips ? `<div class="card-items">${itemChips}</div>` : ''}
+
       <div class="card-meta">
         <span class="meta-item">
           <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -37,6 +43,7 @@ export function renderSlotCard(slot, isApplied) {
           ${slot.location}
         </span>
       </div>
+
       <div class="card-bottom">
         <div class="spots-info">
           <div class="spots-bar">

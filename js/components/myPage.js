@@ -1,5 +1,6 @@
 import { SLOTS } from '../utils/mockData.js';
 import { formatDate } from '../utils/helpers.js';
+import { BADGE_LEVELS, getBadge, getProgress } from '../utils/badges.js';
 
 export function renderMyPage(state) {
   const appliedSlots = [...state.applied]
@@ -8,6 +9,9 @@ export function renderMyPage(state) {
 
   const totalHours = appliedSlots.reduce((sum, s) => sum + s.hours, 0);
   const orgCount = new Set(appliedSlots.map(s => s.orgName)).size;
+  const badge = getBadge(totalHours);
+  const progress = getProgress(totalHours);
+  const nextBadge = BADGE_LEVELS.find(l => l.min > totalHours) || null;
 
   return `
     <section class="mypage-header">
@@ -33,10 +37,42 @@ export function renderMyPage(state) {
         </div>
       </div>
     </section>
+
     <section class="mypage-body">
+      <!-- 뱃지/등급 -->
+      <div class="badge-card">
+        <div class="badge-current">
+          <div class="badge-emoji-wrap" style="background:${badge.bg}">
+            <span class="badge-emoji-lg">${badge.emoji}</span>
+          </div>
+          <div class="badge-info">
+            <p class="badge-name" style="color:${badge.color}">${badge.name}</p>
+            <p class="badge-desc">${nextBadge
+              ? `다음 등급까지 <strong>${nextBadge.min - totalHours}시간</strong> 남았어요`
+              : '최고 등급에 도달하셨어요! 🎉'}</p>
+            <div class="badge-progress-track">
+              <div class="badge-progress-fill" style="width:${progress}%;background:${badge.color}"></div>
+            </div>
+          </div>
+        </div>
+        <div class="badge-grid">
+          ${BADGE_LEVELS.map(l => {
+            const unlocked = totalHours >= l.min;
+            return `<div class="badge-item ${unlocked ? 'unlocked' : 'locked'}" title="${l.name} (${l.min}h+)">
+              <span class="badge-item-emoji">${unlocked ? l.emoji : '🔒'}</span>
+              <span class="badge-item-name">${l.name}</span>
+              <span class="badge-item-req">${l.min}h+</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- 봉사 이력 -->
       <div class="section-header">
         <h2 class="section-title">봉사 이력</h2>
-        ${appliedSlots.length > 0 ? '<button class="btn-cert" data-action="print-cert">📄 인증서 발급</button>' : ''}
+        ${appliedSlots.length > 0
+          ? '<button class="btn-cert" data-action="goto-cert">📄 확인서 발급</button>'
+          : ''}
       </div>
       <div class="history-list">
         ${renderHistory(appliedSlots)}
@@ -66,15 +102,11 @@ function renderHistory(slots) {
 
 function renderBreakdown(slots) {
   const catHours = {};
-  slots.forEach(s => {
-    catHours[s.category] = (catHours[s.category] || 0) + s.hours;
-  });
+  slots.forEach(s => { catHours[s.category] = (catHours[s.category] || 0) + s.hours; });
   const maxH = Math.max(...Object.values(catHours), 1);
   const bars = Object.entries(catHours).map(([cat, h]) => `
     <div class="cat-bar-item">
-      <div class="cat-bar-label">
-        <span>${cat}</span><span>${h}시간</span>
-      </div>
+      <div class="cat-bar-label"><span>${cat}</span><span>${h}시간</span></div>
       <div class="cat-bar-track">
         <div class="cat-bar-fill" style="width:${Math.round((h / maxH) * 100)}%"></div>
       </div>

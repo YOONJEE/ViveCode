@@ -1,8 +1,11 @@
-import { renderHomePage }   from './components/homePage.js';
-import { renderDetailPage } from './components/detailPage.js';
-import { renderMyPage }     from './components/myPage.js';
-import { renderModal }      from './components/modal.js';
-import { SLOTS }            from './utils/mockData.js';
+import { renderHomePage }    from './components/homePage.js';
+import { renderDetailPage }  from './components/detailPage.js';
+import { renderMyPage }      from './components/myPage.js';
+import { renderMessagePage } from './components/messagePage.js';
+import { renderCalendarPage }from './components/calendarPage.js';
+import { renderCertPage }    from './components/certPage.js';
+import { renderModal }       from './components/modal.js';
+import { SLOTS }             from './utils/mockData.js';
 
 // ── 단일 상태 객체 ──────────────────────────────
 const state = {
@@ -11,37 +14,50 @@ const state = {
   categoryFilter: '전체',
   dateFilter: 'today',
   applied: new Set(),
+  messages: {},      // { orgName: [{ from, text, time, read }] }
+  chatOrg: null,     // 현재 열린 채팅 기관명
+  calendarYear: 2026,
+  calendarMonth: 6,
+  calendarDate: null,
 };
 
 // ── DOM 참조 ───────────────────────────────────
-const pageRoot  = document.getElementById('page-root');
-const btnBack   = document.getElementById('btn-back');
+const pageRoot    = document.getElementById('page-root');
+const btnBack     = document.getElementById('btn-back');
 const headerTitle = document.getElementById('header-title');
 
 // ── 렌더링 ─────────────────────────────────────
 function render() {
-  if (state.page === 'home')       pageRoot.innerHTML = renderHomePage(state);
-  else if (state.page === 'detail') pageRoot.innerHTML = renderDetailPage(state.selectedId, state.applied);
-  else if (state.page === 'mypage') pageRoot.innerHTML = renderMyPage(state);
-
+  switch (state.page) {
+    case 'home':     pageRoot.innerHTML = renderHomePage(state);    break;
+    case 'detail':   pageRoot.innerHTML = renderDetailPage(state.selectedId, state.applied); break;
+    case 'mypage':   pageRoot.innerHTML = renderMyPage(state);     break;
+    case 'message':  pageRoot.innerHTML = renderMessagePage(state); break;
+    case 'calendar': pageRoot.innerHTML = renderCalendarPage(state);break;
+    case 'cert':     pageRoot.innerHTML = renderCertPage(state);    break;
+  }
   pageRoot.classList.remove('page-enter');
-  void pageRoot.offsetWidth; // reflow to restart animation
+  void pageRoot.offsetWidth;
   pageRoot.classList.add('page-enter');
-
   updateHeader();
   updateBottomNav();
+  if (state.page === 'message' && state.chatOrg) scrollToBottom();
 }
 
 function updateHeader() {
-  if (state.page === 'detail') {
-    btnBack.classList.remove('hidden');
-    headerTitle.textContent = '봉사 상세';
-    headerTitle.style.cssText = 'font-size:16px;font-weight:700';
-  } else {
-    btnBack.classList.add('hidden');
-    headerTitle.innerHTML = '봉사<span class="logo-on">ON</span>';
-    headerTitle.style.cssText = 'font-size:20px;font-weight:800';
-  }
+  const titles = {
+    home: () => { btnBack.classList.add('hidden'); headerTitle.innerHTML = '봉사<span class="logo-on">ON</span>'; headerTitle.style.cssText='font-size:20px;font-weight:800'; },
+    detail: () => { btnBack.classList.remove('hidden'); headerTitle.textContent='봉사 상세'; headerTitle.style.cssText='font-size:16px;font-weight:700'; },
+    mypage: () => { btnBack.classList.add('hidden'); headerTitle.textContent='마이페이지'; headerTitle.style.cssText='font-size:16px;font-weight:700'; },
+    message: () => {
+      if (state.chatOrg) { btnBack.classList.remove('hidden'); headerTitle.textContent=state.chatOrg; }
+      else { btnBack.classList.add('hidden'); headerTitle.textContent='메시지'; }
+      headerTitle.style.cssText='font-size:16px;font-weight:700';
+    },
+    calendar: () => { btnBack.classList.add('hidden'); headerTitle.textContent='일정 달력'; headerTitle.style.cssText='font-size:16px;font-weight:700'; },
+    cert: () => { btnBack.classList.remove('hidden'); headerTitle.textContent='봉사활동 확인서'; headerTitle.style.cssText='font-size:16px;font-weight:700'; },
+  };
+  (titles[state.page] || titles.home)();
 }
 
 function updateBottomNav() {
@@ -51,9 +67,8 @@ function updateBottomNav() {
 }
 
 // ── 네비게이션 ─────────────────────────────────
-function navigate(page, selectedId = null) {
-  state.page = page;
-  state.selectedId = selectedId;
+function navigate(page, extra = {}) {
+  Object.assign(state, { page, selectedId: null, chatOrg: null }, extra);
   window.scrollTo({ top: 0, behavior: 'instant' });
   render();
 }
@@ -66,16 +81,48 @@ function openModal(slotId) {
   document.body.insertAdjacentHTML('beforeend', renderModal(slot));
 }
 
-function closeModal() {
-  document.getElementById('apply-modal')?.remove();
-}
+function closeModal() { document.getElementById('apply-modal')?.remove(); }
 
 function confirmApply(slotId) {
   state.applied.add(slotId);
+  const slot = SLOTS.find(s => s.id === slotId);
+  if (slot && !state.messages[slot.orgName]) {
+    const t = getTime();
+    state.messages[slot.orgName] = [
+      { from: 'org', text: `안녕하세요! ${slot.title} 봉사 신청해 주셔서 감사합니다 😊`, time: t, read: false },
+      { from: 'org', text: `활동 당일 ${slot.timeStart}까지 ${slot.location}으로 와주세요.`, time: t, read: false },
+    ];
+  }
   closeModal();
   render();
   showToast('봉사 신청이 완료되었어요! 🎉');
 }
+
+// ── 메시지 전송 ────────────────────────────────
+function sendMessage(orgName) {
+  const input = document.getElementById('chat-input');
+  const text = input?.value.trim();
+  if (!text) return;
+  if (!state.messages[orgName]) state.messages[orgName] = [];
+  state.messages[orgName].push({ from: 'me', text, time: getTime(), read: true });
+  input.value = '';
+  render();
+  setTimeout(autoReply, 1200, orgName);
+}
+
+function autoReply(orgName) {
+  const replies = [
+    '네, 확인했습니다! 궁금한 점이 있으면 편하게 연락 주세요 😊',
+    '감사합니다! 당일 뵙겠습니다 🌿',
+    '알겠습니다! 봉사 활동 날 기다릴게요.',
+  ];
+  const text = replies[Math.floor(Math.random() * replies.length)];
+  state.messages[orgName].push({ from: 'org', text, time: getTime(), read: false });
+  render();
+}
+
+// ── 인쇄 ───────────────────────────────────────
+function printCert() { window.print(); }
 
 // ── 토스트 ─────────────────────────────────────
 function showToast(message) {
@@ -91,102 +138,77 @@ function showToast(message) {
   }, 2600);
 }
 
-// ── 인증서 출력 ────────────────────────────────
-function printCert() {
-  const slots = [...state.applied].map(id => SLOTS.find(s => s.id === id)).filter(Boolean);
-  const totalHours = slots.reduce((sum, s) => sum + s.hours, 0);
-  const rows = slots.map(s => `
-    <tr>
-      <td>${s.orgName}</td><td>${s.title}</td>
-      <td>${s.date}</td><td style="text-align:center">${s.hours}시간</td>
-    </tr>`).join('');
-
-  const win = window.open('', '_blank');
-  win.document.write(`<!DOCTYPE html><html lang="ko"><head>
-    <meta charset="UTF-8"><title>봉사활동 확인서</title>
-    <style>
-      body{font-family:'Malgun Gothic',sans-serif;max-width:620px;margin:48px auto;padding:0 20px;color:#1a2b22}
-      h1{text-align:center;font-size:26px;margin-bottom:6px}
-      .sub{text-align:center;color:#6b7c74;font-size:14px;margin-bottom:32px}
-      table{width:100%;border-collapse:collapse;margin-bottom:16px}
-      th,td{border:1px solid #e2eae6;padding:10px 12px;font-size:13px;text-align:left}
-      th{background:#f4f7f5;font-weight:700}
-      .total{text-align:right;font-weight:700;font-size:15px;margin-bottom:40px}
-      .total span{color:#3ecf8e;font-size:20px}
-      .footer{text-align:center;color:#9aaba3;font-size:12px;margin-top:40px}
-      .btn{margin-top:24px;padding:12px 24px;background:#3ecf8e;color:#fff;border:none;
-           border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;display:block;margin:24px auto 0}
-      @media print{.btn{display:none}}
-    </style></head><body>
-    <h1>봉사활동 확인서</h1>
-    <p class="sub">발급처: 봉사ON 플랫폼 | 발급일: 2026-06-10</p>
-    <table><thead><tr><th>기관명</th><th>활동명</th><th>날짜</th><th>봉사시간</th></tr></thead>
-    <tbody>${rows}</tbody></table>
-    <p class="total">총 봉사 시간: <span>${totalHours}시간</span></p>
-    <p class="footer">본 확인서는 봉사ON 플랫폼에서 자동 발급된 문서입니다.</p>
-    <button class="btn" onclick="window.print()">🖨️ 인쇄하기</button>
-  </body></html>`);
-  win.document.close();
+function scrollToBottom() {
+  const el = document.getElementById('chat-messages');
+  if (el) el.scrollTop = el.scrollHeight;
 }
 
-// ── 이벤트 위임 (document 단일 리스너) ──────────
+function getTime() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+}
+
+// ── 이벤트 위임 ────────────────────────────────
 document.addEventListener('click', e => {
   const target = e.target.closest('[data-action]');
   const action = target?.dataset.action;
   const id = parseInt(e.target.closest('[data-id]')?.dataset.id);
 
   switch (action) {
-    case 'filter-cat':
-      state.categoryFilter = target.dataset.value;
-      render();
-      break;
-    case 'filter-date':
-      state.dateFilter = target.dataset.value;
-      render();
-      break;
-    case 'apply':
-      e.stopPropagation();
-      openModal(id);
-      break;
-    case 'open-modal':
-      openModal(id);
-      break;
-    case 'modal-cancel':
-      closeModal();
-      break;
-    case 'modal-confirm':
-      confirmApply(id);
-      break;
-    case 'print-cert':
-      printCert();
-      break;
+    case 'filter-cat':   state.categoryFilter = target.dataset.value; render(); break;
+    case 'filter-date':  state.dateFilter = target.dataset.value; render(); break;
+    case 'apply':        e.stopPropagation(); openModal(id); break;
+    case 'open-modal':   openModal(id); break;
+    case 'modal-cancel': closeModal(); break;
+    case 'modal-confirm':confirmApply(id); break;
+    case 'goto-cert':    navigate('cert'); break;
+    case 'print-cert':   printCert(); break;
+    case 'open-chat': {
+      const org = target.dataset.org;
+      if (state.messages[org]) state.messages[org].forEach(m => m.read = true);
+      state.chatOrg = org; state.page = 'message'; render(); break;
+    }
+    case 'send-msg':     sendMessage(target.dataset.org); break;
+    case 'select-date':  state.calendarDate = target.dataset.date; render(); break;
+    case 'cal-prev':
+      if (state.calendarMonth === 1) { state.calendarMonth = 12; state.calendarYear--; }
+      else state.calendarMonth--;
+      state.calendarDate = null; render(); break;
+    case 'cal-next':
+      if (state.calendarMonth === 12) { state.calendarMonth = 1; state.calendarYear++; }
+      else state.calendarMonth++;
+      state.calendarDate = null; render(); break;
   }
 
-  // 카드 클릭 → 상세 페이지
   const card = e.target.closest('.slot-card');
   if (card && !e.target.closest('[data-action="apply"]')) {
-    navigate('detail', parseInt(card.dataset.id));
+    navigate('detail', { selectedId: parseInt(card.dataset.id) });
   }
 
-  // 모달 오버레이 바깥 클릭 → 닫기
   if (e.target.id === 'apply-modal') closeModal();
-
-  // 뒤로가기 버튼
-  if (e.target.closest('#btn-back')) navigate('home');
+  if (e.target.closest('#btn-back')) handleBack();
 });
 
-// 하단 네비게이션
+function handleBack() {
+  if (state.page === 'detail')  navigate('home');
+  else if (state.page === 'cert') navigate('mypage');
+  else if (state.page === 'message' && state.chatOrg) { state.chatOrg = null; render(); }
+  else navigate('home');
+}
+
 document.getElementById('bottom-nav').addEventListener('click', e => {
   const page = e.target.closest('[data-page]')?.dataset.page;
   if (page) navigate(page);
 });
 
-// 키보드: Escape → 모달 닫기 / Enter → 카드 상세
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModal();
-  if (e.key === 'Enter') {
+  if (e.key === 'Enter' && state.page === 'message' && state.chatOrg) {
+    sendMessage(state.chatOrg);
+  }
+  if (e.key === 'Enter' && !state.chatOrg) {
     const card = document.activeElement.closest('.slot-card');
-    if (card) navigate('detail', parseInt(card.dataset.id));
+    if (card) navigate('detail', { selectedId: parseInt(card.dataset.id) });
   }
 });
 
