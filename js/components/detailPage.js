@@ -1,5 +1,6 @@
 import { SLOTS } from '../utils/mockData.js';
 import { formatDate } from '../utils/helpers.js';
+import { REVIEWS } from '../utils/reviewData.js';
 
 export function renderDetailPage(slotId, applied) {
   const slot = SLOTS.find(s => s.id === slotId);
@@ -64,6 +65,8 @@ export function renderDetailPage(slotId, applied) {
         <p class="spots-text-large">잔여 <strong>${slot.spotsLeft}</strong>명 / 총 ${slot.spotsTotal}명</p>
       </div>
 
+      ${renderReviews(slotId)}
+
       <div class="detail-spacer"></div>
     </section>
     <div class="detail-cta">
@@ -74,4 +77,47 @@ export function renderDetailPage(slotId, applied) {
       </button>
     </div>
   `;
+}
+
+function renderReviews(slotId) {
+  const list = REVIEWS[slotId];
+  if (!list || list.length === 0) return '';
+
+  const avg = (list.reduce((s, r) => s + r.rating, 0) / list.length).toFixed(1);
+
+  const cards = list.map(r => {
+    const stars = Array.from({ length: 5 }, (_, i) =>
+      `<span class="${i < r.rating ? 'star-on' : 'star-off'}">★</span>`
+    ).join('');
+
+    const photos = r.photos ? `
+      <div class="review-photos">
+        ${r.photos.map(p =>
+          `<div class="review-photo" style="background:${p.bg}"><span>${p.emoji}</span></div>`
+        ).join('')}
+      </div>` : '';
+
+    return `
+      <div class="review-card">
+        <div class="review-top">
+          <div class="review-avatar">${r.reviewer[0]}</div>
+          <div class="review-meta">
+            <p class="review-name">${r.reviewer}</p>
+            <div class="review-stars">${stars}</div>
+          </div>
+          <span class="review-date">${r.date}</span>
+        </div>
+        ${photos}
+        <p class="review-text">${r.text}</p>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="detail-section">
+      <div class="review-header-row">
+        <h2 class="detail-section-title">봉사 후기</h2>
+        <div class="review-avg-badge">⭐ ${avg} <span class="review-avg-count">(${list.length}개)</span></div>
+      </div>
+      <div class="review-list">${cards}</div>
+    </div>`;
 }
